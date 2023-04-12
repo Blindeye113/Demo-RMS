@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <GraphQL Remove="Queries\GetSiteAndId.graphql" />
     <GraphQL Remove="Queries\GetSites.Graphql" />
     <GraphQL Remove="Queries\Test.graphql" />
   </ItemGroup>

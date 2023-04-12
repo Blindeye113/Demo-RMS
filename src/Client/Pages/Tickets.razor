@@ -1,0 +1,46 @@
+﻿@page "/ticket"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@using CanidateApp.Shared
+@using static CanidateApp.Shared.TicketReasonEnum;
+@attribute [Authorize]
+
+<PageTitle>Ticket Submission</PageTitle>
+
+<UseSiteNameAndId Strategy="ExecutionStrategy.CacheAndNetwork" Context="result">
+    <MudGrid>       
+        <MudItem xs="12" sm="5">
+            <MudPaper Class="pa-4">
+                <MudForm Model="@ticketforum">
+                    <MudSelect @bind-Value="ticketforum.Site" T="string" Label="Tower\Site" Class="mt-3" id="ddsites">
+                        @foreach (var item in result.Sites)
+                        {
+                            <MudSelectItem Value="item.Name" Tag="item.Id"/>
+                        }
+                    </MudSelect>
+                    <MudSelect @bind-Value="ticketforum.Reason" T="TicketReason" Label="Reason" Class="mt-3">
+                        @foreach (TicketReason item in Enum.GetValues(typeof(TicketReason)))
+                        {
+                            <MudSelectItem Value="item"/>
+                        }
+                    </MudSelect>
+                    <MudTextField  @bind-Value="ticketforum.Details" Label="Details" Lines="5" FullWidth="true" Class="mt-3"/>
+
+                    <MudCardActions>
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">Submit</MudButton>
+                    </MudCardActions>
+                </MudForm>
+            </MudPaper>
+        </MudItem>        
+    </MudGrid>
+</UseSiteNameAndId>
+
+
+@code {
+    Ticket ticketforum = new Ticket();
+
+    private void OnValidSubmit(EditContext context)
+    {   
+        //StateHasChanged();
+    }
+}
