@@ -5,42 +5,125 @@
 @using static CanidateApp.Shared.TicketReasonEnum;
 @attribute [Authorize]
 
-<PageTitle>Ticket Submission</PageTitle>
+@inject HttpClient Http
+@inject NavigationManager navManager
+@inject AuthenticationStateProvider provider
 
-<UseSiteNameAndId Strategy="ExecutionStrategy.CacheAndNetwork" Context="result">
-    <MudGrid>       
-        <MudItem xs="12" sm="5">
-            <MudPaper Class="pa-4">
-                <MudForm Model="@ticketforum">
-                    <MudSelect @bind-Value="ticketforum.Site" T="string" Label="Tower\Site" Class="mt-3" id="ddsites">
-                        @foreach (var item in result.Sites)
-                        {
-                            <MudSelectItem Value="item.Name" Tag="item.Id"/>
-                        }
-                    </MudSelect>
-                    <MudSelect @bind-Value="ticketforum.Reason" T="TicketReason" Label="Reason" Class="mt-3">
-                        @foreach (TicketReason item in Enum.GetValues(typeof(TicketReason)))
-                        {
-                            <MudSelectItem Value="item"/>
-                        }
-                    </MudSelect>
-                    <MudTextField  @bind-Value="ticketforum.Details" Label="Details" Lines="5" FullWidth="true" Class="mt-3"/>
+@if (roles.Contains("contractor"))
+{
+    <PageTitle>Ticket's'</PageTitle>
+}
+else if (roles.Contains("consumer"))
+{
+    <PageTitle>Ticket Submission</PageTitle>
 
-                    <MudCardActions>
-                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">Submit</MudButton>
-                    </MudCardActions>
-                </MudForm>
-            </MudPaper>
-        </MudItem>        
-    </MudGrid>
-</UseSiteNameAndId>
+    <UseSiteNameAndId Strategy="ExecutionStrategy.CacheAndNetwork" Context="result">
+        <MudGrid>
+            <MudItem xs="12" sm="5">
+                <MudPaper Class="pa-4">
+                    <MudForm Model="@ticketforum">
+                        <MudSelect @bind-Value="ticketforum.SiteId" Label="Tower\Site" Class="mt-3">
+                            <MudSelectItem Value="@Guid.Empty">Select A Tower/Site</MudSelectItem>
+                            @foreach (var item in result.Sites)
+                            {
+                                <MudSelectItem Value="item.Id">@item.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudSelect @bind-Value="ticketforum.Reason" T="TicketReason" Label="Reason" Class="mt-3">
+                            @foreach (TicketReason item in Enum.GetValues(typeof(TicketReason)))
+                            {
+                                <MudSelectItem Value="item" />
+                            }
+                        </MudSelect>
+                        <MudTextField @bind-Value="ticketforum.Details" Label="Details" Lines="5" FullWidth="true" Class="mt-3" />
+
+                        <MudButton Disabled="@_processing" OnClick="ValidSubmit" Variant="Variant.Filled" Color="Color.Primary">
+                            @if (_processing)
+                            {
+                                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                <MudText Class="ms-2">Processing</MudText>
+                            }
+                            else if (_retry)
+                            {
+                                <MudText>Retry</MudText>
+                            }
+                            else
+                            {
+                                <MudText>Submit</MudText>
+                            }
+                        </MudButton>
+                    </MudForm>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </UseSiteNameAndId>
+}
+else if (roles.Contains("client"))
+{
+    <PageTitle>Ticket Assignment</PageTitle>
+}
+
 
 
 @code {
+    private bool _processing = false;
+    private bool _retry = false;
+
+
     Ticket ticketforum = new Ticket();
 
-    private void OnValidSubmit(EditContext context)
-    {   
-        //StateHasChanged();
+    private Ticket[]? tickets;
+    private TicketAsignment[]? ticketAssignments;
+
+    private string roles = null!;
+    private string name = null!;
+
+    async Task ValidSubmit()
+    {
+        _processing = true;
+        _retry = false;
+        var result = await Http.PostAsJsonAsync<Ticket>($"{navManager.BaseUri}api/ticket/PostTicket", ticketforum);
+        if (result.IsSuccessStatusCode)
+        {
+            _processing = false;
+        }     
+        else
+        {
+            _processing = false;
+            _retry = true;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var claims = await provider.GetAuthenticationStateAsync();
+            foreach (var claim in claims.User.Claims)
+            {
+                if (claim.Type == "extension_UserRoles")
+                {
+                    roles = claim.Value.ToLower();
+                }
+                if (claim.Type.ToLower().Contains("name"))
+                {
+                    name = claim.Value.ToLower();
+                }
+            }
+            tickets = await Http.GetFromJsonAsync<Ticket[]>("api/tickets/GetTickets");
+            ticketAssignments = await Http.GetFromJsonAsync<TicketAsignment[]>("api/tickets/GetTicketAsignmentsByContractor");
+            if (roles.Contains("contractor"))
+            {
+                ticketAssignments = ticketAssignments!.Where(t => t.Contractor != null && name.Contains(t.Contractor.ToLower())).ToArray();
+            }
+        }
+        catch (AccessTokenNotAvailableException exception)
+        {
+            exception.Redirect();
+        }
+        catch (Exception ee)
+        {
+
+        }
     }
 }

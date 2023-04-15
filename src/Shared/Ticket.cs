@@ -14,7 +14,6 @@ namespace CanidateApp.Shared
         public TicketReason Reason { get; set; }
         public Status Status { get; set; } = Status.Unassigned;
         public Guid SiteId { get; set; }
-        public string Site { get; set; }
         public string? Details { get; set; }
         public DateTime DateCreated { get; set; } = DateTime.Now;
         public DateTime? DateCompleted { get; set; } = null;
