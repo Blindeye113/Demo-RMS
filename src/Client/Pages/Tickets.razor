@@ -9,9 +9,68 @@
 @inject NavigationManager navManager
 @inject AuthenticationStateProvider provider
 
-@if (roles.Contains("contractor"))
+@if (roles == null || tickets == null || ticketAssignments == null)
 {
-    <PageTitle>Ticket's'</PageTitle>
+    <p><em>Loading...</em></p>
+}
+else if (roles.Contains("client"))
+{
+    <PageTitle>Ticket Assignment</PageTitle>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Site Id</th>
+                <th>Reason</th>
+                <th>Details</th>
+                <th>Assigned To</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var ticketAssignment in ticketAssignments)
+            {
+                <tr>
+                    <td>@ticketAssignment.TicketId.SiteId</td>
+                    <td>@ticketAssignment.TicketId.Reason</td>
+                    @if (@ticketAssignment.TicketId.Details != null)
+                    {
+                        <td>@ticketAssignment.TicketId.Details</td>
+                    }
+                    else
+                    {
+                        <td>No further details provided</td>
+                    }
+                    <td>@ticketAssignment.TicketId.Status </td>
+                    @if (ticketAssignment.Contractor != null)
+                    {
+                        <td>
+                            <select selected="@ticketAssignments.First(a => a.TicketId == ticketAssignment.TicketId).Contractor" @onchange="e => ticketAssignments.First(a => a.TicketId == ticketAssignment.TicketId).Contractor = e.Value!.ToString()">
+                                @foreach (var c in contractorsTemp)
+                                {
+                                    <option value="@c">@($"{c}")</option>
+                                }
+                            </select>
+                        </td>
+                    }
+                    else
+                    {
+                        <td>
+                            <select @onchange="e => ticketAssignments.First(a => a.TicketId == ticketAssignment.TicketId).Contractor = e.Value!.ToString()">
+                                <option value="">- No contractor set as of yet</option>
+                                @foreach (var c in contractorsTemp)
+                                {
+                                    <option value="@c">@($"{c}")</option>
+                                }
+                            </select>
+                        </td>
+                    }                   
+                    <td><button @onclick="() => UpdateAssignment(ticketAssignment.TicketId.Id)" class="btn btn-submit">UpdateTicket</button></td>       
+                </tr>
+            }
+        </tbody>
+    </table>
+    
 }
 else if (roles.Contains("consumer"))
 {
@@ -58,9 +117,39 @@ else if (roles.Contains("consumer"))
         </MudGrid>
     </UseSiteNameAndId>
 }
-else if (roles.Contains("client"))
+else if (roles.Contains("contractor"))
 {
-    <PageTitle>Ticket Assignment</PageTitle>
+    <PageTitle>Ticket's'</PageTitle>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Site Id</th>
+                <th>Reason</th>
+                <th>Details</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var ticketAssignment in ticketAssignments)
+            {
+                <tr>
+                    <td>@ticketAssignment.TicketId.SiteId</td>
+                    <td>@ticketAssignment.TicketId.Reason</td>
+                    @if (@ticketAssignment.TicketId.Details != null)
+                    {
+                        <td>@ticketAssignment.TicketId.Details</td>
+                    }
+                    else
+                    {
+                        <td>No further details provided</td>
+                    }
+                    <td>@ticketAssignment.TicketId.Status </td>
+                    <td><button @onclick="() => ResolveTicket(ticketAssignment.TicketId.Id)" class="btn btn-submit">Resolve Ticket</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
 }
 
 
@@ -68,7 +157,7 @@ else if (roles.Contains("client"))
 @code {
     private bool _processing = false;
     private bool _retry = false;
-
+    private List<string> contractorsTemp = new List<string>() { "Contractor1", "Contractor2" };
 
     Ticket ticketforum = new Ticket();
 
@@ -92,6 +181,19 @@ else if (roles.Contains("client"))
             _processing = false;
             _retry = true;
         }
+    }
+
+    private async Task UpdateAssignment(int ticketId)
+    {      
+        var ticketAssignment = ticketAssignments!.First(t => t.Id == ticketId);
+        var result = await Http.PostAsJsonAsync<TicketAsignment>($"{navManager.BaseUri}api/tickets/SaveTicketAsignments", ticketAssignment);
+        ticketAssignments = await Http.GetFromJsonAsync<TicketAsignment[]>("api/tickets/getTicketAssignments");
+    }
+
+    private async Task ResolveTicket(int ticketId)
+    {    
+        var result = await Http.PostAsJsonAsync<int>($"{navManager.BaseUri}api/tickets/resolveTicket", ticketId);
+        ticketAssignments = await Http.GetFromJsonAsync<TicketAsignment[]>("api/tickets/getTicketAssignments");
     }
 
     protected override async Task OnInitializedAsync()
@@ -127,3 +229,25 @@ else if (roles.Contains("client"))
         }
     }
 }
+
+<style>
+    .btn {
+        margin: 1rem 0;
+        margin-right: auto;
+    }
+
+    .btn-submit {
+        background-color: darkgreen;
+        color: white;
+    }
+
+    select {        
+        border-radius: 10px;
+        background-color: transparent;
+        box-shadow: 1px 1px 1px rgba(50, 50, 100, 0.3), -1px -1px 1px rgba(50, 50, 100, 0.3);        
+    }
+
+    option {
+        padding: 0.3rem;
+    }
+</style>
